@@ -19,12 +19,12 @@ ap.add_argument("-b", "--buffer", type=int, default=64,
 	help="max buffer size")
 args = vars(ap.parse_args())
 
-# define the lower and upper boundaries of the "green"
+# define the lower and upper boundaries of the
 # ball in the HSV color space, then initialize the
 # list of tracked points
-greenLower = (20, 150, 100)
-greenUpper = (28, 255, 255)
-pts = deque(maxlen=args["buffer"])
+lowerBound = (30, 100, 150)
+upperBound = (50, 215, 255)
+#pts = deque(maxlen=args["buffer"])
 
 # if a video path was not supplied, grab the reference
 # to the webcam
@@ -33,8 +33,19 @@ if not args.get("video", False):
 
 # otherwise, grab a reference to the video file
 else:
-	vs = cv2.VideoCapture(args["video"])
-
+    vs = cv2.VideoCapture(args["video"])
+    vs.set(cv2.CAP_PROP_AUTO_WB, 0)
+    vs.set(cv2.CAP_PROP_WB_TEMPERATURE, 2800)
+    vs.set(cv2.CAP_PROP_BRIGHTNESS, 20)
+    vs.set(cv2.CAP_PROP_CONTRAST, 0)
+    vs.set(cv2.CAP_PROP_HUE, 0)
+    vs.set(cv2.CAP_PROP_SATURATION, 128)
+    vs.set(cv2.CAP_PROP_SHARPNESS, 0)
+    vs.set(cv2.CAP_PROP_GAMMA, 126)
+    vs.set(cv2.CAP_PROP_BACKLIGHT, 1)
+    vs.set(cv2.CAP_PROP_GAIN, 0)
+    vs.set(cv2.CAP_PROP_AUTO_EXPOSURE, 1)
+    
 # allow the camera or video file to warm up
 time.sleep(2.0)
 
@@ -60,7 +71,7 @@ while True:
 	# construct a mask for the color "green", then perform
 	# a series of dilations and erosions to remove any small
 	# blobs left in the mask
-	mask = cv2.inRange(hsv, greenLower, greenUpper)
+	mask = cv2.inRange(hsv, lowerBound, upperBound)
 	mask = cv2.erode(mask, None, iterations=2)
 	mask = cv2.dilate(mask, None, iterations=2)
 
@@ -80,29 +91,33 @@ while True:
 		((x, y), radius) = cv2.minEnclosingCircle(c)
 		M = cv2.moments(c)
 		center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
+		#print(center)
 
 		# only proceed if the radius meets a minimum size
 		if radius > 1:
 			# draw the circle and centroid on the frame,
 			# then update the list of tracked points
 			cv2.circle(frame, (int(x), int(y)), int(radius),
-				(0, 255, 255), 2)
+				(255, 0, 255), 2)
 			cv2.circle(frame, center, 5, (0, 0, 255), -1)
+			#print(103 * radius ** -0.933)
+			#print(120 * radius **-0.981)
+			#print(radius)
 
 	# update the points queue
-	pts.appendleft(center)
+	#pts.appendleft(center)
 
 	# loop over the set of tracked points
-	for i in range(1, len(pts)):
+	#for i in range(1, len(pts)):
 		# if either of the tracked points are None, ignore
 		# them
-		if pts[i - 1] is None or pts[i] is None:
-			continue
+	#	if pts[i - 1] is None or pts[i] is None:
+	#		continue
 
 		# otherwise, compute the thickness of the line and
 		# draw the connecting lines
-		thickness = int(np.sqrt(args["buffer"] / float(i + 1)) * 2.5)
-		cv2.line(frame, pts[i - 1], pts[i], (0, 0, 255), thickness)
+	#	thickness = int(np.sqrt(args["buffer"] / float(i + 1)) * 2.5)
+	#	cv2.line(frame, pts[i - 1], pts[i], (0, 0, 255), thickness)
 
 	# show the frame to our screen
 	cv2.imshow("Frame", frame)
