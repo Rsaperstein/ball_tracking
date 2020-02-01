@@ -108,7 +108,7 @@ while True:
 			cv2.circle(frame, (int(x), int(y)), int(radius),
 				(255, 0, 255), 2)
 			cv2.circle(frame, center, 5, (0, 0, 255), -1)
-			#sd.putNumber(103 * radius ** -0.933)
+			sd.putNumber("Distance", 103 * radius ** -0.933)
 			#print(103 * radius ** -0.933)
 			#print(120 * radius **-0.981)
 			#print(radius)
