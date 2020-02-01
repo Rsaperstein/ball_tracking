@@ -10,6 +10,14 @@ import argparse
 import cv2
 import imutils
 import time
+from networktables import NetworkTables
+#import logging
+
+#logging.basicConfig(level=logging.DEBUG)
+
+NetworkTables.initialize(server = 'roborio-3637-frc.local')
+
+sd = NetworkTables.getTable("SmartDashboard")
 
 # construct the argument parse and parse the arguments
 ap = argparse.ArgumentParser()
@@ -100,6 +108,7 @@ while True:
 			cv2.circle(frame, (int(x), int(y)), int(radius),
 				(255, 0, 255), 2)
 			cv2.circle(frame, center, 5, (0, 0, 255), -1)
+			#sd.putNumber(103 * radius ** -0.933)
 			#print(103 * radius ** -0.933)
 			#print(120 * radius **-0.981)
 			#print(radius)
