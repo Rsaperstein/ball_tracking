@@ -89,6 +89,8 @@ while True:
 		cv2.CHAIN_APPROX_SIMPLE)
 	cnts = imutils.grab_contours(cnts)
 	center = None
+	
+	xOffset = 0
 
 	# only proceed if at least one contour was found
 	for c in cnts:
@@ -103,12 +105,32 @@ while True:
 
 		# only proceed if the radius meets a minimum size
 		if radius > 1:
+                    xOffset = 300 - x
+                    
+                    #if x < 66:
+                    #    xOffset = -4
+                    #elif x < 132:
+                    #    xOffset = -3
+                    #elif x < 198:
+                    #    xOffset = -2
+                    #elif x < 264:
+                    #    xOffset = -1
+                    #elif x < 336:
+                    #    xOffset = 0
+                    #elif x < 402:
+                    #    xOffset = 1
+                    #elif x < 468:
+                    #    xOffset = 2
+                    #elif x < 534:
+                    #    xOffset = 3
+                    #else:
+                    #    xOffset = 4
 			# draw the circle and centroid on the frame,
 			# then update the list of tracked points
-			cv2.circle(frame, (int(x), int(y)), int(radius),
-				(255, 0, 255), 2)
-			cv2.circle(frame, center, 5, (0, 0, 255), -1)
-			sd.putNumber("Distance", 103 * radius ** -0.933)
+                    cv2.circle(frame, (int(x), int(y)), int(radius), (255, 0, 255), 2)
+                    cv2.circle(frame, center, 5, (0, 0, 255), -1)
+                    sd.putNumber("Distance", 103 * radius ** -0.933)
+                    sd.putNumber("X Offset", xOffset)
 			#print(103 * radius ** -0.933)
 			#print(120 * radius **-0.981)
 			#print(radius)
@@ -129,12 +151,12 @@ while True:
 	#	cv2.line(frame, pts[i - 1], pts[i], (0, 0, 255), thickness)
 
 	# show the frame to our screen
-	cv2.imshow("Frame", frame)
-	key = cv2.waitKey(1) & 0xFF
+	#cv2.imshow("Frame", frame)
+	#key = cv2.waitKey(1) & 0xFF
 
 	# if the 'q' key is pressed, stop the loop
-	if key == ord("q"):
-		break
+	#if key == ord("q"):
+		#break
 
 # if we are not using a video file, stop the camera video stream
 if not args.get("video", False):
