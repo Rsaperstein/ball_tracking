@@ -30,8 +30,8 @@ args = vars(ap.parse_args())
 # define the lower and upper boundaries of the
 # ball in the HSV color space, then initialize the
 # list of tracked points
-lowerBound = (30, 100, 150)
-upperBound = (50, 215, 255)
+lowerBound = (40, 0, 0)
+upperBound = (90, 255, 200)
 #pts = deque(maxlen=args["buffer"])
 
 # if a video path was not supplied, grab the reference
@@ -53,6 +53,7 @@ else:
     vs.set(cv2.CAP_PROP_BACKLIGHT, 1)
     vs.set(cv2.CAP_PROP_GAIN, 0)
     vs.set(cv2.CAP_PROP_AUTO_EXPOSURE, 1)
+    vs.set(cv2.CAP_PROP_EXPOSURE, 16)
     
 # allow the camera or video file to warm up
 time.sleep(2.0)
@@ -131,7 +132,7 @@ while True:
                     cv2.circle(frame, center, 5, (0, 0, 255), -1)
                     sd.putNumber("Distance", 103 * radius ** -0.933)
                     sd.putNumber("X Offset", xOffset)
-			#print(103 * radius ** -0.933)
+                    print(103 * radius ** -0.933)
 			#print(120 * radius **-0.981)
 			#print(radius)
 
