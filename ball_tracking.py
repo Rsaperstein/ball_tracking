@@ -11,9 +11,8 @@ import cv2
 import imutils
 import time
 from networktables import NetworkTables
-#import logging
-
-#logging.basicConfig(level=logging.DEBUG)
+import base64
+import zmq
 
 NetworkTables.initialize(server = 'roborio-3637-frc.local')
 
@@ -23,16 +22,22 @@ sd = NetworkTables.getTable("SmartDashboard")
 ap = argparse.ArgumentParser()
 ap.add_argument("-v", "--video",
 	help="path to the (optional) video file")
-ap.add_argument("-b", "--buffer", type=int, default=64,
-	help="max buffer size")
 args = vars(ap.parse_args())
 
 # define the lower and upper boundaries of the
 # ball in the HSV color space, then initialize the
 # list of tracked points
-lowerBound = (40, 0, 0)
-upperBound = (90, 255, 200)
-#pts = deque(maxlen=args["buffer"])
+
+lowerBound = (10, 0, 0)
+upperBound = (40, 255, 255)
+
+def pick_color(event,x,y,flags,param):
+	if event == cv2.EVENT_LBUTTONDOWN:
+		pixel = image_hsv[y,x]
+		upper =  np.array([pixel[0] + 10, pixel[1] + 10, pixel[2] + 40])
+		lower =  np.array([pixel[0] - 10, pixel[1] - 10, pixel[2] - 40])
+		print(pixel, lower, upper)
+
 
 # if a video path was not supplied, grab the reference
 # to the webcam
@@ -41,28 +46,35 @@ if not args.get("video", False):
 
 # otherwise, grab a reference to the video file
 else:
-    vs = cv2.VideoCapture(args["video"])
-    vs.set(cv2.CAP_PROP_AUTO_WB, 0)
-    vs.set(cv2.CAP_PROP_WB_TEMPERATURE, 2800)
-    vs.set(cv2.CAP_PROP_BRIGHTNESS, 20)
-    vs.set(cv2.CAP_PROP_CONTRAST, 0)
-    vs.set(cv2.CAP_PROP_HUE, 0)
-    vs.set(cv2.CAP_PROP_SATURATION, 128)
-    vs.set(cv2.CAP_PROP_SHARPNESS, 0)
-    vs.set(cv2.CAP_PROP_GAMMA, 126)
-    vs.set(cv2.CAP_PROP_BACKLIGHT, 1)
-    vs.set(cv2.CAP_PROP_GAIN, 0)
-    vs.set(cv2.CAP_PROP_AUTO_EXPOSURE, 1)
-    vs.set(cv2.CAP_PROP_EXPOSURE, 16)
+	vs = cv2.VideoCapture(args["video"])
+	vs.set(cv2.CAP_PROP_AUTO_WB, 0)
+	vs.set(cv2.CAP_PROP_WB_TEMPERATURE, 2800)
+	vs.set(cv2.CAP_PROP_BRIGHTNESS, 0)
+	vs.set(cv2.CAP_PROP_CONTRAST, 32)
+	vs.set(cv2.CAP_PROP_HUE, 0)
+	vs.set(cv2.CAP_PROP_SATURATION, 60)
+	vs.set(cv2.CAP_PROP_SHARPNESS, 2)
+	vs.set(cv2.CAP_PROP_GAMMA, 100)
+	vs.set(cv2.CAP_PROP_BACKLIGHT, 1)
+	vs.set(cv2.CAP_PROP_GAIN, 0)
+	vs.set(cv2.CAP_PROP_AUTO_EXPOSURE, .75)
+	vs.set(cv2.CAP_PROP_EXPOSURE, 47)
+	print(vs.get(cv2.CAP_PROP_FRAME_WIDTH))
+	print(vs.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+
     
 # allow the camera or video file to warm up
 time.sleep(2.0)
+
+context = zmq.Context()
+footage_socket = context.socket(zmq.PUB)
+footage_socket.connect('tcp://10.36.37.63:5555')
 
 # keep looping
 while True:
 	# grab the current frame
 	frame = vs.read()
-
 	# handle the frame from VideoCapture or VideoStream
 	frame = frame[1] if args.get("video", False) else frame
 
@@ -92,6 +104,7 @@ while True:
 	center = None
 	
 	xOffset = 0
+	sentToDashboard = 0
 
 	# only proceed if at least one contour was found
 	for c in cnts:
@@ -99,61 +112,79 @@ while True:
 		# it to compute the minimum enclosing circle and
 		# centroid
 		# c = max(cnts, key=cv2.contourArea)
+		distance = 0
 		((x, y), radius) = cv2.minEnclosingCircle(c)
 		M = cv2.moments(c)
 		center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
 		#print(center)
-
+		a,b,w,h = cv2.boundingRect(c)
+		aspect_ratio = float(w)/h
+		calc_area = 3.1415 * radius * radius
+		area_ratio = calc_area / (float(w)*float(h))
+		centerPointColor = (0, 0, 255) #Red
+		Distance = (103 * radius ** -.933)
+		
+		approx = cv2.approxPolyDP(c, .03 * cv2.arcLength(c, True), True)
+		if len(approx)==8:
+			area = cv2.contourArea(c)
+			circleArea = radius * radius * np.pi
+			#print("circle area: "+str(circleArea))
+			#print("area:" + str(area))
+			#if circleArea == area:
+				#cv2.drawContours(frame, [c], 0, (255, 255, 0), -1)
+		
 		# only proceed if the radius meets a minimum size
-		if radius > 1:
-                    xOffset = 300 - x
-                    
-                    #if x < 66:
-                    #    xOffset = -4
-                    #elif x < 132:
-                    #    xOffset = -3
-                    #elif x < 198:
-                    #    xOffset = -2
-                    #elif x < 264:
-                    #    xOffset = -1
-                    #elif x < 336:
-                    #    xOffset = 0
-                    #elif x < 402:
-                    #    xOffset = 1
-                    #elif x < 468:
-                    #    xOffset = 2
-                    #elif x < 534:
-                    #    xOffset = 3
-                    #else:
-                    #    xOffset = 4
+		#if radius > 5 and aspect_ratio > .9 and aspect_ratio < 1.1 and area_ratio > .7 and area_ratio < .93:
+			#centerPointColor = (0, 255, 0)
+		#if radius > 5 and aspect_ratio > .9 and aspect_ratio < 1.1:
+		if aspect_ratio > .9 and aspect_ratio < 1.1:
+			centerPointColor = (255, 0, 0)  #Blue
+			if area_ratio > .7 and area_ratio < .93:
+					centerPointColor = (0, 255, 0) #Green
+		#if Distance < 6:
+			#if aspect_ratio > .9 and aspect_ratio < 1.1:
+				#centerPointColor = (255, 0, 0)  #Blue
+				#if area_ratio > .62 and area_ratio < .93:
+					#centerPointColor = (0, 255, 0) #Green
+		#elif Distance > 6: 
+			#if aspect_ratio > .5 and aspect_ratio < 1.5:
+				#centerPointColor = (255, 0, 0) #blue
+				#if area_ratio > .25 and area_ratio < 1.75:
+					#centerPointColor = (0, 255, 0) #Green
+		if radius > 5 and  aspect_ratio > .9 and aspect_ratio < 1.1 and area_ratio > .7 and area_ratio < .93:
+			xOffset = 300 - x
+			print("Distance :" + str(103 * radius ** -.933))
+			print( "aspect_ratio = " + str(aspect_ratio))
+			print( "area_ratio = " + str(area_ratio))
+			#print("radius = " + str(radius))
+			#print("area using radius = " + str(np.pi * radius * radius))
+			#print(str(area_ratio) + " = " + str(calc_area) + " / " + str(w) + " * " + str(h) )
+
 			# draw the circle and centroid on the frame,
 			# then update the list of tracked points
-                    cv2.circle(frame, (int(x), int(y)), int(radius), (255, 0, 255), 2)
-                    cv2.circle(frame, center, 5, (0, 0, 255), -1)
-                    sd.putNumber("Distance", 103 * radius ** -0.933)
-                    sd.putNumber("X Offset", xOffset)
-                    print(103 * radius ** -0.933)
-			#print(120 * radius **-0.981)
-			#print(radius)
+			cv2.circle(frame, (int(x), int(y)), int(radius), centerPointColor, 2)
+			cv2.circle(frame, center, 3, centerPointColor, -1)
+			distance = 103 * radius ** -0.933
+			sd.putNumber("Distance", distance)
+			sd.putNumber("X Offset", xOffset)
+			sentToDashboard = 1
+	if sentToDashboard == 0:
+		sd.putNumber("Distance", -1)
+		sd.putNumber("X Offset", 100000)
+		print(-1)
+		print(100000)
+			#cv2.drawContours(frame, [c], 0, (255, 255, 0), -1)
 
-	# update the points queue
-	#pts.appendleft(center)
 
-	# loop over the set of tracked points
-	#for i in range(1, len(pts)):
-		# if either of the tracked points are None, ignore
-		# them
-	#	if pts[i - 1] is None or pts[i] is None:
-	#		continue
-
-		# otherwise, compute the thickness of the line and
-		# draw the connecting lines
-	#	thickness = int(np.sqrt(args["buffer"] / float(i + 1)) * 2.5)
-	#	cv2.line(frame, pts[i - 1], pts[i], (0, 0, 255), thickness)
-
+#	cv2.namedWindow('Frame')
+#	cv2.setMouseCallback('Frame', pick_color)
+#	image_hsv = cv2.cvtColor(frame,cv2.COLOR_BGR2HSV)
 	# show the frame to our screen
-	#cv2.imshow("Frame", frame)
-	#key = cv2.waitKey(1) & 0xFF
+	encoded, buffer = cv2.imencode('.jpg', frame)
+        jpg_as_text = base64.b64encode(buffer)
+        footage_socket.send(jpg_as_text)
+#	cv2.imshow("Frame", frame)
+#	key = cv2.waitKey(1) & 0xFF
 
 	# if the 'q' key is pressed, stop the loop
 	#if key == ord("q"):
@@ -169,3 +200,4 @@ else:
 
 # close all windows
 cv2.destroyAllWindows()
+
