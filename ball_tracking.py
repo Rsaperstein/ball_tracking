@@ -12,7 +12,6 @@ import imutils
 import time
 from networktables import NetworkTables
 import base64
-import zmq
 
 NetworkTables.initialize(server = 'roborio-3637-frc.local')
 
@@ -28,8 +27,8 @@ args = vars(ap.parse_args())
 # ball in the HSV color space, then initialize the
 # list of tracked points
 
-lowerBound = (10, 0, 0)
-upperBound = (40, 255, 255)
+lowerBound = (30, 50, 0)
+upperBound = (50, 255, 255)
 
 def pick_color(event,x,y,flags,param):
 	if event == cv2.EVENT_LBUTTONDOWN:
@@ -52,24 +51,22 @@ else:
 	vs.set(cv2.CAP_PROP_BRIGHTNESS, 0)
 	vs.set(cv2.CAP_PROP_CONTRAST, 32)
 	vs.set(cv2.CAP_PROP_HUE, 0)
-	vs.set(cv2.CAP_PROP_SATURATION, 60)
+	vs.set(cv2.CAP_PROP_SATURATION, 150)
 	vs.set(cv2.CAP_PROP_SHARPNESS, 2)
 	vs.set(cv2.CAP_PROP_GAMMA, 100)
 	vs.set(cv2.CAP_PROP_BACKLIGHT, 1)
 	vs.set(cv2.CAP_PROP_GAIN, 0)
 	vs.set(cv2.CAP_PROP_AUTO_EXPOSURE, .75)
-	vs.set(cv2.CAP_PROP_EXPOSURE, 47)
-	print(vs.get(cv2.CAP_PROP_FRAME_WIDTH))
-	print(vs.get(cv2.CAP_PROP_FRAME_HEIGHT))
+	vs.set(cv2.CAP_PROP_EXPOSURE, 37)
+	#print(vs.get(cv2.CAP_PROP_FRAME_WIDTH))
+	#print(vs.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
 
     
 # allow the camera or video file to warm up
 time.sleep(2.0)
 
-context = zmq.Context()
-footage_socket = context.socket(zmq.PUB)
-footage_socket.connect('tcp://10.36.37.63:5555')
+count = -1
 
 # keep looping
 while True:
@@ -137,10 +134,10 @@ while True:
 		#if radius > 5 and aspect_ratio > .9 and aspect_ratio < 1.1 and area_ratio > .7 and area_ratio < .93:
 			#centerPointColor = (0, 255, 0)
 		#if radius > 5 and aspect_ratio > .9 and aspect_ratio < 1.1:
-		if aspect_ratio > .9 and aspect_ratio < 1.1:
-			centerPointColor = (255, 0, 0)  #Blue
-			if area_ratio > .7 and area_ratio < .93:
-					centerPointColor = (0, 255, 0) #Green
+		#if aspect_ratio > .9 and aspect_ratio < 1.1:
+			#centerPointColor = (255, 0, 0)  #Blue
+			#if area_ratio > .7 and area_ratio < .93:
+					#centerPointColor = (0, 255, 0) #Green
 		#if Distance < 6:
 			#if aspect_ratio > .9 and aspect_ratio < 1.1:
 				#centerPointColor = (255, 0, 0)  #Blue
@@ -168,11 +165,15 @@ while True:
 			sd.putNumber("Distance", distance)
 			sd.putNumber("X Offset", xOffset)
 			sentToDashboard = 1
+			count = 0
 	if sentToDashboard == 0:
-		sd.putNumber("Distance", -1)
-		sd.putNumber("X Offset", 100000)
-		print(-1)
-		print(100000)
+                count += 1
+                print(count)
+                if count >= 8:
+                    sd.putNumber("Distance", -1)
+                    sd.putNumber("X Offset", 100000)
+                    print(-1)
+                    print(100000)
 			#cv2.drawContours(frame, [c], 0, (255, 255, 0), -1)
 
 
@@ -180,11 +181,8 @@ while True:
 #	cv2.setMouseCallback('Frame', pick_color)
 #	image_hsv = cv2.cvtColor(frame,cv2.COLOR_BGR2HSV)
 	# show the frame to our screen
-	encoded, buffer = cv2.imencode('.jpg', frame)
-        jpg_as_text = base64.b64encode(buffer)
-        footage_socket.send(jpg_as_text)
-#	cv2.imshow("Frame", frame)
-#	key = cv2.waitKey(1) & 0xFF
+	#cv2.imshow("Frame", frame)
+	#key = cv2.waitKey(1) & 0xFF
 
 	# if the 'q' key is pressed, stop the loop
 	#if key == ord("q"):
@@ -200,4 +198,3 @@ else:
 
 # close all windows
 cv2.destroyAllWindows()
-
